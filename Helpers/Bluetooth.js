@@ -1,6 +1,6 @@
 const port = 9838,
-    devices = [],
     socket = require('socket.io-client')('http://localhost:' + port);
+let devices = [];
 btSerial = new (require('bluetooth-serial-port')).BluetoothSerialPort();
 
 const onFinishedFoundDevice = function (message) {
@@ -47,6 +47,7 @@ const findBluetooths = function () {
 }
 
 async function getDevices() {
+    devices = []
     // Do the magic
     await findBluetooths();
 

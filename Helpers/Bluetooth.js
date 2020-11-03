@@ -21,14 +21,17 @@ const sendMessage = function (type, message, callback) {
 
 
 const findBluetooths = function () {
+    devices = []
     // Scan for BT devices in range
     btSerial.on('found', function (address, name) {
         if (typeof devices[address] === 'undefined') {
             const message = {'mac': address, 'name': name}; // prepare message
             // sendMessage('add-device', message, onFinishedFoundDevice); // actually send message to server
             if (typeof message.mac !== 'undefined' && typeof message.name !== 'undefined') {
-                devices.push(message);
-                console.log("Device Found: " + address + " which is named: " + name);
+                if (!devices.find(o => o.mac === message.mac)) {
+                    devices.push(message);
+                    console.log("Device Found: " + address + " which is named: " + name);
+                }
             }
         }
     });
@@ -47,7 +50,6 @@ const findBluetooths = function () {
 }
 
 async function getDevices() {
-    devices = []
     // Do the magic
     await findBluetooths();
 

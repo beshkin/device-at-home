@@ -1,0 +1,25 @@
+{
+  "name": "devices-at-home",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon ./index.js localhost 3080",
+    "dev-udp": "nodemon ./udpServer.js localhost 3080"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluetooth-serial-port": "^2.2.7",
+    "express": "^4.17.1",
+    "libnmap": "^0.4.19",
+    "local-devices": "^3.1.0",
+    "socket.io-client": "^2.3.1"
+  },
+  "devDependencies": {
+    "eslint": "^7.10.0",
+    "nodemon": "^2.0.5"
+  }
+}

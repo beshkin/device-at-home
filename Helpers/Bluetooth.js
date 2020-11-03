@@ -20,19 +20,19 @@ const sendMessage = function (type, message, callback) {
 };
 
 
-const findBluetooths =function() {
+const findBluetooths = function () {
     // Scan for BT devices in range
     btSerial.on('found', function (address, name) {
         if (typeof devices[address] === 'undefined') {
-            const message = {'address': address, 'name': name}; // prepare message
+            const message = {'mac': address, 'name': name}; // prepare message
             // sendMessage('add-device', message, onFinishedFoundDevice); // actually send message to server
-            if (typeof message.address !== 'undefined' && typeof message.name !== 'undefined')
-                devices.push({'address': message.address, 'name': message.name});
-            console.log("Device Found: " + address + " which is named: " + name);
+            if (typeof message.mac !== 'undefined' && typeof message.name !== 'undefined') {
+                devices.push(message);
+                console.log("Device Found: " + address + " which is named: " + name);
+            }
         }
     });
 
-    // Keep searching
     btSerial.on('finished', function () {
         console.log("Received Finished.");
         setTimeout(function () {

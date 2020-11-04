@@ -4,6 +4,7 @@ const nmap = require('libnmap')
 let devices = [];
 
 const findNetwork = function () {
+    devices = []
     find().then(devicesFound => {
         devicesFound.forEach(function (device) {
             nmap.scan({

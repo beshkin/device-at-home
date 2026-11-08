@@ -1,63 +1,68 @@
-const port = 9838,
-    socket = require('socket.io-client')('http://localhost:' + port);
-let devices = [];
-btSerial = new (require('bluetooth-serial-port')).BluetoothSerialPort();
+const { BluetoothSerialPort } = require('bluetooth-serial-port');
 
-const onFinishedFoundDevice = function (message) {
-    // Add new device to object array
-    if (typeof message.address !== 'undefined' && typeof message.name !== 'undefined')
-        devices[message.address] = {'address': message.address, 'name': message.name};
+// On Linux the native inquiry runs for ~10s and then resolves each device's
+// name one by one (each unreachable device can stall it for several seconds).
+// All 'found' events are only emitted once that whole process is done, so we
+// wait for 'finished' instead of guessing with a fixed sleep. This timeout is
+// only a safety net in case the native side never reports back.
+const SCAN_TIMEOUT_MS = 60000;
 
-    console.log("Sent new device", message);
-};
+// The adapter can only run one inquiry at a time; a second concurrent one
+// fails silently with zero results. Overlapping requests share this scan.
+let inFlight = null;
 
-const sendMessage = function (type, message, callback) {
-    this.message = message;
-    socket.emit(type, message);
+function runInquiry() {
+    return new Promise((resolve) => {
+        // Fresh instance per scan so listeners never accumulate across calls.
+        const bt = new BluetoothSerialPort();
+        const found = new Map();
 
-    if (callback)
-        callback(message);
-};
-
-
-const findBluetooths = function () {
-    devices = []
-    // Scan for BT devices in range
-    btSerial.on('found', function (address, name) {
-        if (typeof devices[address] === 'undefined') {
-            const message = {'mac': address, 'name': name}; // prepare message
-            // sendMessage('add-device', message, onFinishedFoundDevice); // actually send message to server
-            if (typeof message.mac !== 'undefined' && typeof message.name !== 'undefined') {
-                if (!devices.find(o => o.mac === message.mac)) {
-                    devices.push(message);
-                    console.log("Device Found: " + address + " which is named: " + name);
-                }
+        bt.on('found', (address, name) => {
+            if (address && !found.has(address)) {
+                found.set(address, { mac: address, name: name || address });
+                console.log('Device Found: ' + address + ' which is named: ' + name);
             }
+        });
+
+        bt.once('finished', () => {
+            bt.removeAllListeners();
+            resolve(Array.from(found.values()));
+        });
+
+        console.log('Begin scanning');
+        try {
+            bt.inquire();
+        } catch (err) {
+            console.error('Bluetooth inquiry failed: ' + err.message);
+            bt.removeAllListeners();
+            resolve([]);
         }
     });
+}
 
-    btSerial.on('finished', function () {
-        console.log("Received Finished.");
-        setTimeout(function () {
-            // btSerial.inquire();
-            btSerial.close()
-        }, 3000);
-    });
-
-    // Scan for devices
-    console.log("Begin scanning");
-    btSerial.inquire();
+function scan() {
+    if (!inFlight) {
+        inFlight = runInquiry().finally(() => {
+            inFlight = null;
+        });
+    }
+    return inFlight;
 }
 
 async function getDevices() {
-    // Do the magic
-    await findBluetooths();
-
-    await new Promise((resolve) => {
-        setTimeout(resolve, 20000);
+    let timer;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => {
+            console.error('Bluetooth scan timed out after ' + SCAN_TIMEOUT_MS + 'ms');
+            resolve([]);
+        }, SCAN_TIMEOUT_MS);
     });
 
-    return devices
+    try {
+        return await Promise.race([scan(), timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
-module.exports.getDevices = getDevices
+module.exports.getDevices = getDevices;
